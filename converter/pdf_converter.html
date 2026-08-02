@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>ATPL PDF Converter</title>
+</head>
+
+<body>
+
+<h2>ATPL PDF to JSON Converter</h2>
+
+<input type="file" id="file">
+
+<br><br>
+
+<button onclick="convert()">Convert</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+
+async function convert(){
+
+let file=document.getElementById("file").files[0];
+
+if(!file){
+alert("Select PDF first");
+return;
+}
+
+
+let buffer=await file.arrayBuffer();
+
+let pdf=await pdfjsLib.getDocument({data:buffer}).promise;
+
+
+let questions=[];
+
+
+for(let p=1;p<=pdf.numPages;p++){
+
+let page=await pdf.getPage(p);
+
+let content=await page.getTextContent();
+
+
+let rows={};
+
+
+content.items.forEach(item=>{
+
+let y=Math.round(item.transform[5] / 10) * 10;
+
+
+if(!rows[y]){
+rows[y]=[];
+}
+
+
+rows[y].push({
+
+x:item.transform[4],
+text:item.str
+
+});
+
+
+});
+
+
+
+Object.keys(rows)
+.sort((a,b)=>b-a)
+.forEach(y=>{
+
+
+let row=rows[y];
+
+
+let columns={
+
+question:"",
+options:[
+"",
+"",
+"",
+""
+],
+answer:""
+
+};
+
+
+
+row.forEach(item=>{
+
+
+let x=Math.round(item.x);
+
+let text=item.text.trim();
+
+
+if(!text) return;
+
+
+
+if(x < 180){
+
+columns.question += text + " ";
+
+}
+
+else if(x >=180 && x <260){
+
+columns.options[0] += text + " ";
+
+}
+
+else if(x >=260 && x <340){
+
+columns.options[1] += text + " ";
+
+}
+
+else if(x >=340 && x <420){
+
+columns.options[2] += text + " ";
+
+}
+
+else if(x >=420 && x <450){
+
+columns.options[3] += text + " ";
+
+}
+
+else if(x >=450){
+
+columns.answer += text;
+
+}
+
+
+});
+
+
+
+let answer=columns.answer
+.replace(/\s/g,"")
+.trim();
+
+
+
+if(
+answer=="A" ||
+answer=="B" ||
+answer=="C" ||
+answer=="D"
+){
+
+
+let answerIndex =
+answer=="A"?0:
+answer=="B"?1:
+answer=="C"?2:3;
+
+
+
+let options=columns.options
+
+.map(x=>x.replace(/\s+/g," ").trim())
+
+.filter(x=>x!="");
+
+
+
+let question=columns.question
+
+.replace(/\s+/g," ")
+
+.trim();
+
+
+
+if(question && options.length>=3){
+
+
+questions.push({
+
+question:question,
+
+options:options,
+
+answer:answerIndex
+
+});
+
+
+}
+
+
+}
+
+
+});
+
+
+}
+
+
+
+let json=JSON.stringify(questions,null,2);
+
+
+
+let blob=new Blob(
+
+[json],
+
+{type:"application/json"}
+
+);
+
+
+
+let link=document.createElement("a");
+
+link.href=URL.createObjectURL(blob);
+
+link.download="Operational.json";
+
+link.click();
+
+
+
+alert(
+"Completed. Questions: "+questions.length
+);
+
+
+}
+</script>
+
+
+</body>
+
+</html>
